@@ -4,6 +4,43 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import '../theme/app_theme.dart';
 
+// ---------------------------------------------------------------------------
+// Constants
+// ---------------------------------------------------------------------------
+
+class _ProfileDimensions {
+  static const double avatarWidth = 144.0;
+  static const double avatarHeight = 159.58;
+  static const double avatarBorderRadius = 45.0;
+  static const double titleFontSize = 28.0;
+  static const double nameFontSize = 24.0;
+  static const double fieldFontSize = 24.0;
+  static const double backIconSize = 32.0;
+  static const double buttonBorderRadius = 24.0;
+  static const double buttonFontSize = 18.0;
+}
+
+// ---------------------------------------------------------------------------
+// Shared style helper
+// ---------------------------------------------------------------------------
+
+TextStyle _profileTextStyle({
+  required Color color,
+  double fontSize = _ProfileDimensions.fieldFontSize,
+  FontWeight fontWeight = FontWeight.bold,
+}) {
+  return TextStyle(
+    fontFamily: 'Source Sans Pro',
+    fontSize: fontSize,
+    fontWeight: fontWeight,
+    color: color,
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Screen
+// ---------------------------------------------------------------------------
+
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
 
@@ -43,23 +80,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> _loadPatientData() async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    String? patientJson = prefs.getString('patientData');
+    final prefs = await SharedPreferences.getInstance();
+    final patientJson = prefs.getString('patientData');
 
-    if (patientJson != null) {
-      patient = Patient.fromJson(json.decode(patientJson));
-    } else {
-      patient = Patient(
-        id: '1',
-        firstName: 'Antonel',
-        lastName: 'Ionescu',
-        age: 21,
-        bloodGroup: 'A-',
-        knownAllergies: ['Eggs', 'Cat hair'],
-        conditions: ['Diabetes'],
-        medicalHistory: ['Appendectomy'],
-      );
-    }
+    patient = patientJson != null
+        ? Patient.fromJson(json.decode(patientJson))
+        : Patient(
+            id: '1',
+            firstName: 'Antonel',
+            lastName: 'Ionescu',
+            age: 21,
+            bloodGroup: 'A-',
+            knownAllergies: ['Eggs', 'Cat hair'],
+            conditions: ['Diabetes'],
+            medicalHistory: ['Appendectomy'],
+          );
 
     firstNameController.text = patient.firstName;
     lastNameController.text = patient.lastName;
@@ -69,31 +104,31 @@ class _ProfileScreenState extends State<ProfileScreen> {
     conditionsController.text = patient.conditions.join(', ');
     medicalHistoryController.text = patient.medicalHistory.join(', ');
 
-    setState(() {
-      isLoading = false;
-    });
+    setState(() => isLoading = false);
   }
 
   Future<void> _savePatientData() async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
+    final prefs = await SharedPreferences.getInstance();
 
-    patient.firstName = firstNameController.text;
-    patient.lastName = lastNameController.text;
-    patient.age = int.tryParse(ageController.text) ?? patient.age;
-    patient.bloodGroup = bloodGroupController.text;
-    patient.knownAllergies = allergiesController.text.split(',').map((e) => e.trim()).toList();
-    patient.conditions = conditionsController.text.split(',').map((e) => e.trim()).toList();
-    patient.medicalHistory = medicalHistoryController.text.split(',').map((e) => e.trim()).toList();
+    patient
+      ..firstName = firstNameController.text
+      ..lastName = lastNameController.text
+      ..age = int.tryParse(ageController.text) ?? patient.age
+      ..bloodGroup = bloodGroupController.text
+      ..knownAllergies =
+          allergiesController.text.split(',').map((e) => e.trim()).toList()
+      ..conditions =
+          conditionsController.text.split(',').map((e) => e.trim()).toList()
+      ..medicalHistory =
+          medicalHistoryController.text.split(',').map((e) => e.trim()).toList();
 
     await prefs.setString('patientData', json.encode(patient.toJson()));
   }
 
-  void toggleEditMode() {
+  void _toggleEditMode() {
     setState(() {
+      if (isEditing) _savePatientData();
       isEditing = !isEditing;
-      if (!isEditing) {
-        _savePatientData();
-      }
     });
   }
 
@@ -102,9 +137,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     if (isLoading) {
       return Scaffold(
         backgroundColor: AppTheme.colors.background,
-        body: const Center(
-          child: CircularProgressIndicator(),
-        ),
+        body: const Center(child: CircularProgressIndicator()),
       );
     }
 
@@ -114,192 +147,280 @@ class _ProfileScreenState extends State<ProfileScreen> {
         child: Column(
           children: [
             const SizedBox(height: 16),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0),
-              child: Stack(
-                children: [
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: IconButton(
-                      icon: const Icon(Icons.arrow_back),
-                      color: AppTheme.colors.menuButtons,
-                      iconSize: 32,
-                      onPressed: () {
-                        Navigator.pop(context);
-                      },
-                    ),
-                  ),
-                  Align(
-                    alignment: Alignment.center,
-                    child: Text(
-                      'Profile',
-                      style: TextStyle(
-                        fontFamily: 'Source Sans Pro',
-                        fontSize: 28,
-                        fontWeight: FontWeight.bold,
-                        color: AppTheme.colors.menuButtons,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
+            _ProfileHeader(onBack: () => Navigator.pop(context)),
             const SizedBox(height: 40),
-            Center(
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(45),
-                child: Container(
-                  width: 144,
-                  height: 159.58,
-                  color: Colors.black,
-                  child: Image.asset(
-                    'assets/profile_pic.jpg',
-                    fit: BoxFit.cover,
-                  ),
-                ),
-              ),
-            ),
+            const _ProfileAvatar(),
             const SizedBox(height: 20),
-            Center(
-              child: isEditing
-                  ? Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Flexible(
-                    child: TextField(
-                      controller: firstNameController,
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontFamily: 'Source Sans Pro',
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                        color: AppTheme.colors.menuButtons,
-                      ),
-                      decoration: const InputDecoration(
-                        border: UnderlineInputBorder(),
-                        hintText: 'First Name',
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Flexible(
-                    child: TextField(
-                      controller: lastNameController,
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontFamily: 'Source Sans Pro',
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                        color: AppTheme.colors.menuButtons,
-                      ),
-                      decoration: const InputDecoration(
-                        border: UnderlineInputBorder(),
-                        hintText: 'Last Name',
-                      ),
-                    ),
-                  ),
-                ],
-              )
-                  : Text(
-                '${patient.firstName} ${patient.lastName}',
-                style: TextStyle(
-                  fontFamily: 'Source Sans Pro',
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  color: AppTheme.colors.menuButtons,
-                ),
-              ),
+            _ProfileName(
+              isEditing: isEditing,
+              patient: patient,
+              firstNameController: firstNameController,
+              lastNameController: lastNameController,
             ),
             const SizedBox(height: 40),
             Expanded(
-              child: ListView(
-                padding: const EdgeInsets.symmetric(horizontal: 32),
-                children: [
-                  _buildEditableField('Age', ageController, isNumber: true),
-                  const SizedBox(height: 20),
-                  _buildEditableField('Blood Type', bloodGroupController),
-                  const SizedBox(height: 20),
-                  _buildEditableField('Allergies', allergiesController),
-                  const SizedBox(height: 20),
-                  _buildEditableField('Conditions', conditionsController),
-                  const SizedBox(height: 20),
-                  _buildEditableField('Medical History', medicalHistoryController),
-                ],
+              child: _ProfileFieldList(
+                isEditing: isEditing,
+                ageController: ageController,
+                bloodGroupController: bloodGroupController,
+                allergiesController: allergiesController,
+                conditionsController: conditionsController,
+                medicalHistoryController: medicalHistoryController,
               ),
             ),
-            Center(
-              child: ElevatedButton(
-                onPressed: toggleEditMode,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppTheme.colors.menuButtons,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(24),
-                  ),
-                  padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 30),
-                ),
-                child: Text(
-                  isEditing ? 'Save Changes' : 'Edit',
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                  ),
-                ),
-              ),
-            ),
+            _EditButton(isEditing: isEditing, onPressed: _toggleEditMode),
             const SizedBox(height: 40),
           ],
         ),
       ),
     );
   }
+}
 
-  Widget _buildEditableField(String label, TextEditingController controller, {bool isNumber = false}) {
+// ---------------------------------------------------------------------------
+// Sub-widgets
+// ---------------------------------------------------------------------------
+
+class _ProfileHeader extends StatelessWidget {
+  const _ProfileHeader({required this.onBack});
+
+  final VoidCallback onBack;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16.0),
+      child: Stack(
+        children: [
+          Align(
+            alignment: Alignment.centerLeft,
+            child: IconButton(
+              icon: const Icon(Icons.arrow_back),
+              color: AppTheme.colors.menuButtons,
+              iconSize: _ProfileDimensions.backIconSize,
+              onPressed: onBack,
+            ),
+          ),
+          Align(
+            alignment: Alignment.center,
+            child: Text(
+              'Profile',
+              style: _profileTextStyle(
+                color: AppTheme.colors.menuButtons,
+                fontSize: _ProfileDimensions.titleFontSize,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ProfileAvatar extends StatelessWidget {
+  const _ProfileAvatar();
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: ClipRRect(
+        borderRadius:
+            BorderRadius.circular(_ProfileDimensions.avatarBorderRadius),
+        child: Container(
+          width: _ProfileDimensions.avatarWidth,
+          height: _ProfileDimensions.avatarHeight,
+          color: Colors.black,
+          child: Image.asset(
+            'assets/profile_pic.jpg',
+            fit: BoxFit.cover,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ProfileName extends StatelessWidget {
+  const _ProfileName({
+    required this.isEditing,
+    required this.patient,
+    required this.firstNameController,
+    required this.lastNameController,
+  });
+
+  final bool isEditing;
+  final Patient patient;
+  final TextEditingController firstNameController;
+  final TextEditingController lastNameController;
+
+  @override
+  Widget build(BuildContext context) {
+    final nameStyle = _profileTextStyle(
+      color: AppTheme.colors.menuButtons,
+      fontSize: _ProfileDimensions.nameFontSize,
+    );
+
+    if (!isEditing) {
+      return Center(
+        child: Text(
+          '${patient.firstName} ${patient.lastName}',
+          style: nameStyle,
+        ),
+      );
+    }
+
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Flexible(
+          child: TextField(
+            controller: firstNameController,
+            textAlign: TextAlign.center,
+            style: nameStyle,
+            decoration: const InputDecoration(
+              border: UnderlineInputBorder(),
+              hintText: 'First Name',
+            ),
+          ),
+        ),
+        const SizedBox(width: 10),
+        Flexible(
+          child: TextField(
+            controller: lastNameController,
+            textAlign: TextAlign.center,
+            style: nameStyle,
+            decoration: const InputDecoration(
+              border: UnderlineInputBorder(),
+              hintText: 'Last Name',
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _ProfileFieldList extends StatelessWidget {
+  const _ProfileFieldList({
+    required this.isEditing,
+    required this.ageController,
+    required this.bloodGroupController,
+    required this.allergiesController,
+    required this.conditionsController,
+    required this.medicalHistoryController,
+  });
+
+  final bool isEditing;
+  final TextEditingController ageController;
+  final TextEditingController bloodGroupController;
+  final TextEditingController allergiesController;
+  final TextEditingController conditionsController;
+  final TextEditingController medicalHistoryController;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      padding: const EdgeInsets.symmetric(horizontal: 32),
+      children: [
+        _ProfileField(
+            label: 'Age', controller: ageController, isEditing: isEditing, isNumber: true),
+        const SizedBox(height: 20),
+        _ProfileField(
+            label: 'Blood Type', controller: bloodGroupController, isEditing: isEditing),
+        const SizedBox(height: 20),
+        _ProfileField(
+            label: 'Allergies', controller: allergiesController, isEditing: isEditing),
+        const SizedBox(height: 20),
+        _ProfileField(
+            label: 'Conditions', controller: conditionsController, isEditing: isEditing),
+        const SizedBox(height: 20),
+        _ProfileField(
+            label: 'Medical History',
+            controller: medicalHistoryController,
+            isEditing: isEditing),
+      ],
+    );
+  }
+}
+
+class _ProfileField extends StatelessWidget {
+  const _ProfileField({
+    required this.label,
+    required this.controller,
+    required this.isEditing,
+    this.isNumber = false,
+  });
+
+  final String label;
+  final TextEditingController controller;
+  final bool isEditing;
+  final bool isNumber;
+
+  @override
+  Widget build(BuildContext context) {
+    final fieldStyle = _profileTextStyle(color: AppTheme.colors.menuButtons);
+
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Expanded(
           flex: 2,
-          child: Text(
-            "$label: ",
-            style: TextStyle(
-              fontFamily: 'Source Sans Pro',
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-              color: AppTheme.colors.menuButtons,
-            ),
-          ),
+          child: Text('$label: ', style: fieldStyle),
         ),
         Expanded(
           flex: 3,
           child: isEditing
               ? TextField(
-            controller: controller,
-            keyboardType: isNumber ? TextInputType.number : TextInputType.text,
-            style: TextStyle(
-              fontFamily: 'Source Sans Pro',
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-              color: AppTheme.colors.menuButtons,
-            ),
-            decoration: const InputDecoration(
-              border: OutlineInputBorder(),
-              contentPadding: EdgeInsets.symmetric(vertical: 8, horizontal: 10),
-            ),
-          )
+                  controller: controller,
+                  keyboardType:
+                      isNumber ? TextInputType.number : TextInputType.text,
+                  style: fieldStyle,
+                  decoration: const InputDecoration(
+                    border: OutlineInputBorder(),
+                    contentPadding:
+                        EdgeInsets.symmetric(vertical: 8, horizontal: 10),
+                  ),
+                )
               : Text(
-            controller.text,
-            style: TextStyle(
-              fontFamily: 'Source Sans Pro',
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-              color: AppTheme.colors.menuButtons,
-            ),
-            maxLines: null,
-            softWrap: true,
-          ),
+                  controller.text,
+                  style: fieldStyle,
+                  maxLines: null,
+                  softWrap: true,
+                ),
         ),
       ],
+    );
+  }
+}
+
+class _EditButton extends StatelessWidget {
+  const _EditButton({required this.isEditing, required this.onPressed});
+
+  final bool isEditing;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: ElevatedButton(
+        onPressed: onPressed,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: AppTheme.colors.menuButtons,
+          shape: RoundedRectangleBorder(
+            borderRadius:
+                BorderRadius.circular(_ProfileDimensions.buttonBorderRadius),
+          ),
+          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 30),
+        ),
+        child: Text(
+          isEditing ? 'Save Changes' : 'Edit',
+          style: const TextStyle(
+            fontSize: _ProfileDimensions.buttonFontSize,
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+          ),
+        ),
+      ),
     );
   }
 }
