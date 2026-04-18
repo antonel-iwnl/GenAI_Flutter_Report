@@ -1,14 +1,15 @@
+// main.dart (refactored)
+
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'package:rescue_now_app/src/crash_detection.dart';
-import 'package:rescue_now_app/src/location_management.dart';
-import 'src/firebase_options.dart';
-import 'src/profile_screen.dart';
-import 'theme/app_theme.dart';
-
-// ignore_for_file: avoid_print
 import 'package:flutter_svg/flutter_svg.dart';
 import 'dart:async';
+
+import 'src/firebase_options.dart';
+import 'src/profile_screen.dart';
+import 'src/crash_detection.dart';
+import 'theme/app_theme.dart';
+import 'src/location_management.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -25,41 +26,20 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Emergency SOS',
+      debugShowCheckedModeBanner: false,
       theme: ThemeData(
         primarySwatch: Colors.brown,
-        //colorScheme: ColorScheme.fromSeed(seedColor: Color(0xFFEEA798)),
         useMaterial3: true,
       ),
-      debugShowCheckedModeBanner: false,
       home: const MyHomePage(title: 'Home Page'),
     );
   }
 }
 
-class ImageIcon extends StatelessWidget {
-  const ImageIcon({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: () {
-        print('Image Icon tapped');
-      },
-      child: SizedBox(
-        height: 40,
-        width: 40,
-        child: SvgPicture.asset(
-          'assets/info svg-2.svg',
-          fit: BoxFit.contain,
-        ),
-      ),
-    );
-  }
-}
+// ======================= HOME PAGE =======================
 
 class MyHomePage extends StatefulWidget {
   const MyHomePage({super.key, required this.title});
-
   final String title;
 
   @override
@@ -67,20 +47,22 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
-  double _buttonSize = 145.0;
+  double _buttonSize = 145;
   Timer? _timer;
   bool _isHolding = false;
+
+  final EmergencyService _service = EmergencyService();
 
   void _onLongPressStart() {
     setState(() {
       _isHolding = true;
-      _buttonSize = 160.0;
+      _buttonSize = 160;
     });
 
     _timer = Timer(const Duration(seconds: 1), () {
       if (_isHolding) {
-        sendSOSAlert();
-        _showEmergencyMessage();
+        _service.sendSOS();
+        _showEmergencyDialog();
       }
     });
   }
@@ -88,24 +70,28 @@ class _MyHomePageState extends State<MyHomePage> {
   void _onLongPressEnd() {
     setState(() {
       _isHolding = false;
-      _buttonSize = 145.0;
+      _buttonSize = 145;
     });
     _timer?.cancel();
   }
 
-  void _showEmergencyMessage() {
+  void _showEmergencyDialog() {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text("Emergency"),
-        content: const Text("Calling Emergency Something..."),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text("OK"),
-          ),
-        ],
+      builder: (_) => const AlertDialog(
+        title: Text("Emergency"),
+        content: Text("Calling Emergency Something..."),
       ),
+    );
+  }
+
+  void _openBottomSheet() {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(50)),
+      ),
+      builder: (_) => EmergencyBottomSheet(service: _service),
     );
   }
 
@@ -117,151 +103,99 @@ class _MyHomePageState extends State<MyHomePage> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 20.0),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.start,
-                children: [
-                  const SizedBox(width: 16),
-                  _buildIconWithLabel(
-                    icon: SvgPicture.asset(
-                      'assets/emergency-contacts.svg',
-                      height: 40,
-                      width: 40,
-                    ),
-                    label: 'Contacts',
-                    onTap: () {
-                      print('Contacts tapped');
-                    },
-                  ),
-                  const SizedBox(width: 24),
-                  _buildIconWithLabel(
-                    icon: SvgPicture.asset(
-                      'assets/crash.svg',
-                      height: 40,
-                      width: 40,
-                    ),
-                    label: 'Crash test',
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => CrashDetectionScreen(),
-                        ),
-                      );
-                    },
-                  ),
-                  const Spacer(),
-                  Padding(
-                    padding: const EdgeInsets.only(right: 20.0),
-                    child: _buildIconWithLabel(
-                      icon: SvgPicture.asset(
-                        'assets/profile.svg',
-                        color: AppTheme.colors.menuButtons,
-                        height: 40,
-                        width: 40,
-                      ),
-                      label: 'Profile',
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => const ProfileScreen(),
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-                ],
-              ),
+            TopMenuBar(),
+            SOSButton(
+              size: _buttonSize,
+              onStart: _onLongPressStart,
+              onEnd: _onLongPressEnd,
             ),
-            GestureDetector(
-              onLongPressStart: (_) => _onLongPressStart(),
-              onLongPressEnd: (_) => _onLongPressEnd(),
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 200),
-                height: _buttonSize,
-                width: _buttonSize,
-                decoration: BoxDecoration(
-                  color: AppTheme.colors.primary,
-                  borderRadius: BorderRadius.circular(20),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black26,
-                      blurRadius: 10,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
-                ),
-                // butonul de sos
-                child: Center(
-                  child: SvgPicture.asset(
-                    'assets/sos_button.svg',
-                  ),
-                ),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.only(bottom: 20.0),
-              child: Container(
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(20),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.3),
-                      spreadRadius: 2,
-                      blurRadius: 6,
-                      offset: Offset(0, 3),
-                    ),
-                  ],
-                ),
-                child: ElevatedButton(
-                  onPressed: () {
-                    showEmergencyMenu(context);
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppTheme.colors.menuButtons,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 20,
-                      vertical: 10,
-                    ),
-                  ),
-                  child: Text(
-                    'Help options',
-                    style: TextStyle(
-                      color: AppTheme.colors.text,
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-              ),
-            ),
+            HelpButton(onPressed: _openBottomSheet),
           ],
         ),
       ),
     );
   }
+}
 
-  Widget _buildIconWithLabel({
-    required Widget icon,
-    required String label,
-    required VoidCallback onTap,
-  }) {
+// ======================= COMPONENTS =======================
+
+class TopMenuBar extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 20),
+      child: Row(
+        children: [
+          const SizedBox(width: 16),
+
+          MenuIconButton(
+            asset: 'assets/emergency-contacts.svg',
+            label: 'Contacts',
+            onTap: () => print('Contacts tapped'),
+          ),
+
+          const SizedBox(width: 24),
+
+          MenuIconButton(
+            asset: 'assets/crash.svg',
+            label: 'Crash test',
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => CrashDetectionScreen(),
+                ),
+              );
+            },
+          ),
+
+          const Spacer(),
+
+          Padding(
+            padding: const EdgeInsets.only(right: 20),
+            child: MenuIconButton(
+              asset: 'assets/profile.svg',
+              label: 'Profile',
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const ProfileScreen(),
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class MenuIconButton extends StatelessWidget {
+  final String asset;
+  final String label;
+  final VoidCallback onTap;
+
+  const MenuIconButton({
+    super.key,
+    required this.asset,
+    required this.label,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
     return GestureDetector(
       onTap: onTap,
       child: Column(
         children: [
-          icon,
+          SvgPicture.asset(asset, height: 40, width: 40),
           const SizedBox(height: 8),
           Text(
             label,
             style: TextStyle(
               color: AppTheme.colors.menuButtons,
-              fontSize: 16,
               fontWeight: FontWeight.bold,
             ),
           ),
@@ -269,155 +203,146 @@ class _MyHomePageState extends State<MyHomePage> {
       ),
     );
   }
+}
 
-  void showEmergencyMenu(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.only(
-          topLeft: Radius.circular(50.0),
-          topRight: Radius.circular(50.0),
+class SOSButton extends StatelessWidget {
+  final double size;
+  final VoidCallback onStart;
+  final VoidCallback onEnd;
+
+  const SOSButton({
+    super.key,
+    required this.size,
+    required this.onStart,
+    required this.onEnd,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onLongPressStart: (_) => onStart(),
+      onLongPressEnd: (_) => onEnd(),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        height: size,
+        width: size,
+        decoration: BoxDecoration(
+          color: AppTheme.colors.primary,
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: const [
+            BoxShadow(
+              color: Colors.black26,
+              blurRadius: 10,
+              offset: Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Center(
+          child: SvgPicture.asset('assets/sos_button.svg'),
         ),
       ),
-      builder: (BuildContext context) {
-        return Container(
-          decoration: BoxDecoration(
-            color: AppTheme.colors.menuButtons,
-            borderRadius: BorderRadius.only(
-              topLeft: Radius.circular(50.0),
-              topRight: Radius.circular(50.0),
-            ),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Padding(
-                padding: const EdgeInsets.only(top: 10.0, bottom: 20.0),
-                child: Container(
-                  width: 50,
-                  height: 5,
-                  decoration: BoxDecoration(
-                    color: AppTheme.colors.text,
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                child: Column(
-                  children: [
-                    _buildModalButton(
-                      label: 'Send Emergency Text',
-                      onTap: () {
-                          sendSOSAlert();
-                          textEmergencyContacts();
-                          Navigator.pop(context);
-                      },
-                    ),
-                    _buildModalButton(
-                      label: 'Voice Emergency Call',
-                      onTap: () {
-                        sendSOSAlert();
-                        initiateVoiceCall();
-                        Navigator.pop(context);
-                      },
-                    ),
-                    _buildModalButton(
-                      label: 'Video Emergency Call',
-                      onTap: () {
-                        sendSOSAlert();
-                        initiateVideoCall();
-                        Navigator.pop(context);
-                      },
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 20),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20.0),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    FittedBox(
-                      fit: BoxFit.contain,
-                      child: SizedBox(
-                        height: 40,
-                        width: 40,
-                        child: SvgPicture.asset(
-                          'assets/info svg-2.svg',
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 2),
-                    Expanded(
-                      child: Text(
-                          'Initiating any kind of help request will also alert emergency contacts.',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                              color: AppTheme.colors.text,
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold)),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 20),
-            ],
-          ),
-        );
-      },
     );
   }
+}
 
-  Widget _buildModalButton({
-    required String label,
-    required VoidCallback onTap,
-  }) {
-    final Color cardColor = AppTheme.colors.primary;
+class HelpButton extends StatelessWidget {
+  final VoidCallback onPressed;
+
+  const HelpButton({super.key, required this.onPressed});
+
+  @override
+  Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 10.0),
+      padding: const EdgeInsets.only(bottom: 20),
       child: ElevatedButton(
-        onPressed: onTap,
+        onPressed: onPressed,
         style: ElevatedButton.styleFrom(
-          backgroundColor: cardColor,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-          padding: const EdgeInsets.symmetric(vertical: 15),
-          fixedSize: const Size(277, 55),
+          backgroundColor: AppTheme.colors.menuButtons,
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
         ),
         child: Text(
-          label,
+          'Help options',
           style: TextStyle(
             color: AppTheme.colors.text,
             fontSize: 18,
+            fontWeight: FontWeight.bold,
           ),
         ),
       ),
     );
   }
+}
 
-  void textEmergencyContacts() {
-    print("Trimitere mesaj text către contacte de urgență...");
+// ======================= BOTTOM SHEET =======================
+
+class EmergencyBottomSheet extends StatelessWidget {
+  final EmergencyService service;
+
+  const EmergencyBottomSheet({super.key, required this.service});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: AppTheme.colors.menuButtons,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(50)),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const SizedBox(height: 20),
+
+          _buildAction(context, 'Send Emergency Text', () {
+            service.sendSOS();
+            service.sendText();
+            Navigator.pop(context);
+          }),
+
+          _buildAction(context, 'Voice Emergency Call', () {
+            service.sendSOS();
+            service.voiceCall();
+            Navigator.pop(context);
+          }),
+
+          _buildAction(context, 'Video Emergency Call', () {
+            service.sendSOS();
+            service.videoCall();
+            Navigator.pop(context);
+          }),
+
+          const SizedBox(height: 20),
+        ],
+      ),
+    );
   }
 
-  // Asta gen porneste sa incepi sa vorebesti cu aia de la 112, NU cu contactele
-  void initiateTextConversation() {
-    print('Asta gen porneste sa incepi sa vorebesti cu aia de la 112, NU cu contactele');
+  Widget _buildAction(BuildContext context, String label, VoidCallback onTap) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 10),
+      child: ElevatedButton(
+        onPressed: onTap,
+        child: Text(label),
+      ),
+    );
   }
+}
 
-  void initiateVoiceCall() {
-    print("Inițiere apel vocal către urgențe...");
-  }
+// ======================= SERVICE =======================
 
-  void initiateVideoCall() {
-    print("Inițiere apel video către urgențe...");
-  }
-
-  // trimite locatia si detaliile pacientului la server
-  void sendSOSAlert() async {
+class EmergencyService {
+  void sendSOS() {
     getAndSendLocation();
+  }
+
+  void sendText() {
+    print("Send emergency text...");
+  }
+
+  void voiceCall() {
+    print("Voice call...");
+  }
+
+  void videoCall() {
+    print("Video call...");
   }
 }
