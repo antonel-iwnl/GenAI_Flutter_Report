@@ -1,23 +1,25 @@
+import 'dart:convert';
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:rescue_now_app/src/patient.dart';
+import 'package:rescue_now_app/theme/app_theme.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'dart:convert';
-import '../theme/app_theme.dart';
 
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
 
 class _ProfileDimensions {
-  static const double avatarWidth = 144.0;
+  static const double avatarWidth = 144;
   static const double avatarHeight = 159.58;
-  static const double avatarBorderRadius = 45.0;
-  static const double titleFontSize = 28.0;
-  static const double nameFontSize = 24.0;
-  static const double fieldFontSize = 24.0;
-  static const double backIconSize = 32.0;
-  static const double buttonBorderRadius = 24.0;
-  static const double buttonFontSize = 18.0;
+  static const double avatarBorderRadius = 45;
+  static const double titleFontSize = 28;
+  static const double nameFontSize = 24;
+  static const double fieldFontSize = 24;
+  static const double backIconSize = 32;
+  static const double buttonBorderRadius = 24;
+  static const double buttonFontSize = 18;
 }
 
 // ---------------------------------------------------------------------------
@@ -28,113 +30,125 @@ TextStyle _profileTextStyle({
   required Color color,
   double fontSize = _ProfileDimensions.fieldFontSize,
   FontWeight fontWeight = FontWeight.bold,
-}) {
-  return TextStyle(
-    fontFamily: 'Source Sans Pro',
-    fontSize: fontSize,
-    fontWeight: fontWeight,
-    color: color,
-  );
-}
+}) =>
+    TextStyle(
+      fontFamily: 'Source Sans Pro',
+      fontSize: fontSize,
+      fontWeight: fontWeight,
+      color: color,
+    );
 
 // ---------------------------------------------------------------------------
 // Screen
 // ---------------------------------------------------------------------------
 
+/// A screen that displays and allows editing of the current patient's profile.
 class ProfileScreen extends StatefulWidget {
+  /// Creates a [ProfileScreen].
   const ProfileScreen({super.key});
 
   @override
-  _ProfileScreenState createState() => _ProfileScreenState();
+  State<ProfileScreen> createState() => _ProfileScreenState();
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
-  late Patient patient;
-  bool isEditing = false;
-  bool isLoading = true;
+  late Patient _patient;
+  bool _isEditing = false;
+  bool _isLoading = true;
 
-  final TextEditingController firstNameController = TextEditingController();
-  final TextEditingController lastNameController = TextEditingController();
-  final TextEditingController ageController = TextEditingController();
-  final TextEditingController bloodGroupController = TextEditingController();
-  final TextEditingController allergiesController = TextEditingController();
-  final TextEditingController conditionsController = TextEditingController();
-  final TextEditingController medicalHistoryController = TextEditingController();
+  final TextEditingController _firstNameController = TextEditingController();
+  final TextEditingController _lastNameController = TextEditingController();
+  final TextEditingController _ageController = TextEditingController();
+  final TextEditingController _bloodGroupController = TextEditingController();
+  final TextEditingController _allergiesController = TextEditingController();
+  final TextEditingController _conditionsController = TextEditingController();
+  final TextEditingController _medicalHistoryController =
+      TextEditingController();
 
   @override
   void initState() {
     super.initState();
-    _loadPatientData();
+    unawaited(_loadPatientData());
   }
 
   @override
   void dispose() {
-    firstNameController.dispose();
-    lastNameController.dispose();
-    ageController.dispose();
-    bloodGroupController.dispose();
-    allergiesController.dispose();
-    conditionsController.dispose();
-    medicalHistoryController.dispose();
+    _firstNameController.dispose();
+    _lastNameController.dispose();
+    _ageController.dispose();
+    _bloodGroupController.dispose();
+    _allergiesController.dispose();
+    _conditionsController.dispose();
+    _medicalHistoryController.dispose();
     super.dispose();
   }
 
   Future<void> _loadPatientData() async {
-    final prefs = await SharedPreferences.getInstance();
-    final patientJson = prefs.getString('patientData');
+    var prefs = await SharedPreferences.getInstance();
+    var patientJson = prefs.getString('patientData');
 
-    patient = patientJson != null
-        ? Patient.fromJson(json.decode(patientJson))
-        : Patient(
+    _patient = patientJson != null
+        ? Patient.fromJson(json.decode(patientJson) as Map<String, dynamic>)
+        : const Patient(
             id: '1',
             firstName: 'Antonel',
             lastName: 'Ionescu',
             age: 21,
             bloodGroup: 'A-',
-            knownAllergies: ['Eggs', 'Cat hair'],
-            conditions: ['Diabetes'],
-            medicalHistory: ['Appendectomy'],
+            knownAllergies: <String>['Eggs', 'Cat hair'],
+            conditions: <String>['Diabetes'],
+            medicalHistory: <String>['Appendectomy'],
           );
 
-    firstNameController.text = patient.firstName;
-    lastNameController.text = patient.lastName;
-    ageController.text = patient.age.toString();
-    bloodGroupController.text = patient.bloodGroup;
-    allergiesController.text = patient.knownAllergies.join(', ');
-    conditionsController.text = patient.conditions.join(', ');
-    medicalHistoryController.text = patient.medicalHistory.join(', ');
+    _firstNameController.text = _patient.firstName;
+    _lastNameController.text = _patient.lastName;
+    _ageController.text = _patient.age.toString();
+    _bloodGroupController.text = _patient.bloodGroup;
+    _allergiesController.text = _patient.knownAllergies.join(', ');
+    _conditionsController.text = _patient.conditions.join(', ');
+    _medicalHistoryController.text = _patient.medicalHistory.join(', ');
 
-    setState(() => isLoading = false);
+    setState(() {
+      _isLoading = false;
+    });
   }
 
   Future<void> _savePatientData() async {
-    final prefs = await SharedPreferences.getInstance();
+    _patient = _patient.copyWith(
+      firstName: _firstNameController.text,
+      lastName: _lastNameController.text,
+      age: int.tryParse(_ageController.text) ?? _patient.age,
+      bloodGroup: _bloodGroupController.text,
+      knownAllergies: _allergiesController.text
+          .split(',')
+          .map((e) => e.trim())
+          .toList(),
+      conditions: _conditionsController.text
+          .split(',')
+          .map((e) => e.trim())
+          .toList(),
+      medicalHistory: _medicalHistoryController.text
+          .split(',')
+          .map((e) => e.trim())
+          .toList(),
+    );
 
-    patient
-      ..firstName = firstNameController.text
-      ..lastName = lastNameController.text
-      ..age = int.tryParse(ageController.text) ?? patient.age
-      ..bloodGroup = bloodGroupController.text
-      ..knownAllergies =
-          allergiesController.text.split(',').map((e) => e.trim()).toList()
-      ..conditions =
-          conditionsController.text.split(',').map((e) => e.trim()).toList()
-      ..medicalHistory =
-          medicalHistoryController.text.split(',').map((e) => e.trim()).toList();
-
-    await prefs.setString('patientData', json.encode(patient.toJson()));
+    var prefs = await SharedPreferences.getInstance();
+    await prefs.setString('patientData', json.encode(_patient.toJson()));
   }
 
-  void _toggleEditMode() {
+  Future<void> _toggleEditMode() async {
+    if (_isEditing) {
+      await _savePatientData();
+    }
     setState(() {
-      if (isEditing) _savePatientData();
-      isEditing = !isEditing;
+      _isEditing = !_isEditing;
     });
   }
 
   @override
   Widget build(BuildContext context) {
-    if (isLoading) {
+    if (_isLoading) {
       return Scaffold(
         backgroundColor: AppTheme.colors.background,
         body: const Center(child: CircularProgressIndicator()),
@@ -145,30 +159,30 @@ class _ProfileScreenState extends State<ProfileScreen> {
       backgroundColor: AppTheme.colors.background,
       body: SafeArea(
         child: Column(
-          children: [
+          children: <Widget>[
             const SizedBox(height: 16),
             _ProfileHeader(onBack: () => Navigator.pop(context)),
             const SizedBox(height: 40),
             const _ProfileAvatar(),
             const SizedBox(height: 20),
             _ProfileName(
-              isEditing: isEditing,
-              patient: patient,
-              firstNameController: firstNameController,
-              lastNameController: lastNameController,
+              isEditing: _isEditing,
+              patient: _patient,
+              firstNameController: _firstNameController,
+              lastNameController: _lastNameController,
             ),
             const SizedBox(height: 40),
             Expanded(
               child: _ProfileFieldList(
-                isEditing: isEditing,
-                ageController: ageController,
-                bloodGroupController: bloodGroupController,
-                allergiesController: allergiesController,
-                conditionsController: conditionsController,
-                medicalHistoryController: medicalHistoryController,
+                isEditing: _isEditing,
+                ageController: _ageController,
+                bloodGroupController: _bloodGroupController,
+                allergiesController: _allergiesController,
+                conditionsController: _conditionsController,
+                medicalHistoryController: _medicalHistoryController,
               ),
             ),
-            _EditButton(isEditing: isEditing, onPressed: _toggleEditMode),
+            _EditButton(isEditing: _isEditing, onPressed: _toggleEditMode),
             const SizedBox(height: 40),
           ],
         ),
@@ -187,57 +201,58 @@ class _ProfileHeader extends StatelessWidget {
   final VoidCallback onBack;
 
   @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16.0),
-      child: Stack(
-        children: [
-          Align(
-            alignment: Alignment.centerLeft,
-            child: IconButton(
-              icon: const Icon(Icons.arrow_back),
-              color: AppTheme.colors.menuButtons,
-              iconSize: _ProfileDimensions.backIconSize,
-              onPressed: onBack,
-            ),
-          ),
-          Align(
-            alignment: Alignment.center,
-            child: Text(
-              'Profile',
-              style: _profileTextStyle(
+  void debugFillProperties(DiagnosticPropertiesBuilder properties) {
+    super.debugFillProperties(properties);
+    properties.add(ObjectFlagProperty<VoidCallback>.has('onBack', onBack));
+  }
+
+  @override
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        child: Stack(
+          children: <Widget>[
+            Align(
+              alignment: Alignment.centerLeft,
+              child: IconButton(
+                icon: const Icon(Icons.arrow_back),
                 color: AppTheme.colors.menuButtons,
-                fontSize: _ProfileDimensions.titleFontSize,
+                iconSize: _ProfileDimensions.backIconSize,
+                onPressed: onBack,
               ),
             ),
-          ),
-        ],
-      ),
-    );
-  }
+            Align(
+              child: Text(
+                'Profile',
+                style: _profileTextStyle(
+                  color: AppTheme.colors.menuButtons,
+                  fontSize: _ProfileDimensions.titleFontSize,
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
 }
 
 class _ProfileAvatar extends StatelessWidget {
   const _ProfileAvatar();
 
   @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: ClipRRect(
-        borderRadius:
-            BorderRadius.circular(_ProfileDimensions.avatarBorderRadius),
-        child: Container(
-          width: _ProfileDimensions.avatarWidth,
-          height: _ProfileDimensions.avatarHeight,
-          color: Colors.black,
-          child: Image.asset(
-            'assets/profile_pic.jpg',
-            fit: BoxFit.cover,
+  Widget build(BuildContext context) => Center(
+        child: ClipRRect(
+          borderRadius:
+              BorderRadius.circular(_ProfileDimensions.avatarBorderRadius),
+          child: Container(
+            width: _ProfileDimensions.avatarWidth,
+            height: _ProfileDimensions.avatarHeight,
+            color: Colors.black,
+            child: Image.asset(
+              'assets/profile_pic.jpg',
+              fit: BoxFit.cover,
+            ),
           ),
         ),
-      ),
-    );
-  }
+      );
 }
 
 class _ProfileName extends StatelessWidget {
@@ -254,8 +269,24 @@ class _ProfileName extends StatelessWidget {
   final TextEditingController lastNameController;
 
   @override
+  void debugFillProperties(DiagnosticPropertiesBuilder properties) {
+    super.debugFillProperties(properties);
+    properties
+      ..add(DiagnosticsProperty<bool>('isEditing', isEditing))
+      ..add(DiagnosticsProperty<Patient>('patient', patient))
+      ..add(DiagnosticsProperty<TextEditingController>(
+        'firstNameController',
+        firstNameController,
+      ))
+      ..add(DiagnosticsProperty<TextEditingController>(
+        'lastNameController',
+        lastNameController,
+      ));
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final nameStyle = _profileTextStyle(
+    var nameStyle = _profileTextStyle(
       color: AppTheme.colors.menuButtons,
       fontSize: _ProfileDimensions.nameFontSize,
     );
@@ -271,7 +302,7 @@ class _ProfileName extends StatelessWidget {
 
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
-      children: [
+      children: <Widget>[
         Flexible(
           child: TextField(
             controller: firstNameController,
@@ -318,29 +349,68 @@ class _ProfileFieldList extends StatelessWidget {
   final TextEditingController medicalHistoryController;
 
   @override
-  Widget build(BuildContext context) {
-    return ListView(
-      padding: const EdgeInsets.symmetric(horizontal: 32),
-      children: [
-        _ProfileField(
-            label: 'Age', controller: ageController, isEditing: isEditing, isNumber: true),
-        const SizedBox(height: 20),
-        _ProfileField(
-            label: 'Blood Type', controller: bloodGroupController, isEditing: isEditing),
-        const SizedBox(height: 20),
-        _ProfileField(
-            label: 'Allergies', controller: allergiesController, isEditing: isEditing),
-        const SizedBox(height: 20),
-        _ProfileField(
-            label: 'Conditions', controller: conditionsController, isEditing: isEditing),
-        const SizedBox(height: 20),
-        _ProfileField(
+  void debugFillProperties(DiagnosticPropertiesBuilder properties) {
+    super.debugFillProperties(properties);
+    properties
+      ..add(DiagnosticsProperty<bool>('isEditing', isEditing))
+      ..add(DiagnosticsProperty<TextEditingController>(
+        'ageController',
+        ageController,
+      ))
+      ..add(DiagnosticsProperty<TextEditingController>(
+        'bloodGroupController',
+        bloodGroupController,
+      ))
+      ..add(DiagnosticsProperty<TextEditingController>(
+        'allergiesController',
+        allergiesController,
+      ))
+      ..add(DiagnosticsProperty<TextEditingController>(
+        'conditionsController',
+        conditionsController,
+      ))
+      ..add(DiagnosticsProperty<TextEditingController>(
+        'medicalHistoryController',
+        medicalHistoryController,
+      ));
+  }
+
+  @override
+  Widget build(BuildContext context) => ListView(
+        padding: const EdgeInsets.symmetric(horizontal: 32),
+        children: <Widget>[
+          _ProfileField(
+            label: 'Age',
+            controller: ageController,
+            isEditing: isEditing,
+            isNumber: true,
+          ),
+          const SizedBox(height: 20),
+          _ProfileField(
+            label: 'Blood Type',
+            controller: bloodGroupController,
+            isEditing: isEditing,
+          ),
+          const SizedBox(height: 20),
+          _ProfileField(
+            label: 'Allergies',
+            controller: allergiesController,
+            isEditing: isEditing,
+          ),
+          const SizedBox(height: 20),
+          _ProfileField(
+            label: 'Conditions',
+            controller: conditionsController,
+            isEditing: isEditing,
+          ),
+          const SizedBox(height: 20),
+          _ProfileField(
             label: 'Medical History',
             controller: medicalHistoryController,
-            isEditing: isEditing),
-      ],
-    );
-  }
+            isEditing: isEditing,
+          ),
+        ],
+      );
 }
 
 class _ProfileField extends StatelessWidget {
@@ -357,12 +427,25 @@ class _ProfileField extends StatelessWidget {
   final bool isNumber;
 
   @override
+  void debugFillProperties(DiagnosticPropertiesBuilder properties) {
+    super.debugFillProperties(properties);
+    properties
+      ..add(StringProperty('label', label))
+      ..add(DiagnosticsProperty<TextEditingController>(
+        'controller',
+        controller,
+      ))
+      ..add(DiagnosticsProperty<bool>('isEditing', isEditing))
+      ..add(DiagnosticsProperty<bool>('isNumber', isNumber));
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final fieldStyle = _profileTextStyle(color: AppTheme.colors.menuButtons);
+    var fieldStyle = _profileTextStyle(color: AppTheme.colors.menuButtons);
 
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
+      children: <Widget>[
         Expanded(
           flex: 2,
           child: Text('$label: ', style: fieldStyle),
@@ -384,8 +467,6 @@ class _ProfileField extends StatelessWidget {
               : Text(
                   controller.text,
                   style: fieldStyle,
-                  maxLines: null,
-                  softWrap: true,
                 ),
         ),
       ],
@@ -400,27 +481,34 @@ class _EditButton extends StatelessWidget {
   final VoidCallback onPressed;
 
   @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: ElevatedButton(
-        onPressed: onPressed,
-        style: ElevatedButton.styleFrom(
-          backgroundColor: AppTheme.colors.menuButtons,
-          shape: RoundedRectangleBorder(
-            borderRadius:
-                BorderRadius.circular(_ProfileDimensions.buttonBorderRadius),
-          ),
-          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 30),
-        ),
-        child: Text(
-          isEditing ? 'Save Changes' : 'Edit',
-          style: const TextStyle(
-            fontSize: _ProfileDimensions.buttonFontSize,
-            fontWeight: FontWeight.bold,
-            color: Colors.white,
-          ),
-        ),
-      ),
-    );
+  void debugFillProperties(DiagnosticPropertiesBuilder properties) {
+    super.debugFillProperties(properties);
+    properties
+      ..add(DiagnosticsProperty<bool>('isEditing', isEditing))
+      ..add(ObjectFlagProperty<VoidCallback>.has('onPressed', onPressed));
   }
+
+  @override
+  Widget build(BuildContext context) => Center(
+        child: ElevatedButton(
+          onPressed: onPressed,
+          style: ElevatedButton.styleFrom(
+            backgroundColor: AppTheme.colors.menuButtons,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(
+                _ProfileDimensions.buttonBorderRadius,
+              ),
+            ),
+            padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 30),
+          ),
+          child: Text(
+            isEditing ? 'Save Changes' : 'Edit',
+            style: const TextStyle(
+              fontSize: _ProfileDimensions.buttonFontSize,
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+            ),
+          ),
+        ),
+      );
 }

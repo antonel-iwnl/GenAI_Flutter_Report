@@ -7,7 +7,7 @@ class EmergencyService {
   EmergencyService._(); // Prevent instantiation
 
   static Future<void> sendSOSAlert(BuildContext context) async {
-    await getAndSendLocation();
+    getAndSendLocation();
   }
 
   static Future<void> sendEmergencyText(BuildContext context) async {
