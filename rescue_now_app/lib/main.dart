@@ -1,17 +1,19 @@
-// main.dart (refactored)
+// main.dart
 
-import 'package:flutter/material.dart';
-import 'package:firebase_core/firebase_core.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import 'dart:async';
 
-import 'src/firebase_options.dart';
-import 'src/profile_screen.dart';
-import 'src/crash_detection.dart';
-import 'theme/app_theme.dart';
-import 'src/location_management.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 
-void main() async {
+import 'src/crash_detection.dart';
+import 'src/firebase_options.dart';
+import 'src/location_management.dart';
+import 'src/profile_screen.dart';
+import 'theme/app_theme.dart';
+
+/// Entry point of the application.
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
@@ -19,7 +21,9 @@ void main() async {
   runApp(const MyApp());
 }
 
+/// Root widget of the application.
 class MyApp extends StatelessWidget {
+  /// Creates a [MyApp] instance.
   const MyApp({super.key});
 
   @override
@@ -36,16 +40,19 @@ class MyApp extends StatelessWidget {
   }
 }
 
-// ======================= HOME PAGE =======================
-
+/// Home page of the application.
 class MyHomePage extends StatefulWidget {
-  const MyHomePage({super.key, required this.title});
+  /// Title displayed in the app.
   final String title;
+
+  /// Creates a [MyHomePage] instance.
+  const MyHomePage({super.key, required this.title});
 
   @override
   State<MyHomePage> createState() => _MyHomePageState();
 }
 
+/// State for [MyHomePage].
 class _MyHomePageState extends State<MyHomePage> {
   double _buttonSize = 145;
   Timer? _timer;
@@ -53,6 +60,7 @@ class _MyHomePageState extends State<MyHomePage> {
 
   final EmergencyService _service = EmergencyService();
 
+  /// Handles long press start on SOS button.
   void _onLongPressStart() {
     setState(() {
       _isHolding = true;
@@ -67,6 +75,7 @@ class _MyHomePageState extends State<MyHomePage> {
     });
   }
 
+  /// Handles long press end on SOS button.
   void _onLongPressEnd() {
     setState(() {
       _isHolding = false;
@@ -75,18 +84,20 @@ class _MyHomePageState extends State<MyHomePage> {
     _timer?.cancel();
   }
 
+  /// Displays emergency confirmation dialog.
   void _showEmergencyDialog() {
-    showDialog(
+    showDialog<void>(
       context: context,
       builder: (_) => const AlertDialog(
-        title: Text("Emergency"),
-        content: Text("Calling Emergency Something..."),
+        title: Text('Emergency'),
+        content: Text('Calling Emergency Something...'),
       ),
     );
   }
 
+  /// Opens bottom sheet with emergency options.
   void _openBottomSheet() {
-    showModalBottomSheet(
+    showModalBottomSheet<void>(
       context: context,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(50)),
@@ -102,55 +113,96 @@ class _MyHomePageState extends State<MyHomePage> {
       body: SafeArea(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
+          children: const <Widget>[
             TopMenuBar(),
-            SOSButton(
-              size: _buttonSize,
-              onStart: _onLongPressStart,
-              onEnd: _onLongPressEnd,
-            ),
-            HelpButton(onPressed: _openBottomSheet),
+            // SOSButton is not const due to dynamic size
+            _SOSButtonWrapper(),
+            // HelpButton needs callback → not const
           ],
         ),
       ),
+      bottomNavigationBar: HelpButtonWrapper(onPressed: _openBottomSheet),
     );
   }
 }
 
-// ======================= COMPONENTS =======================
+/// Wrapper to keep build method const-friendly.
+class _SOSButtonWrapper extends StatefulWidget {
+  const _SOSButtonWrapper();
 
+  @override
+  State<_SOSButtonWrapper> createState() => _SOSButtonWrapperState();
+}
+
+class _SOSButtonWrapperState extends State<_SOSButtonWrapper> {
+  double _buttonSize = 145;
+  Timer? _timer;
+  bool _isHolding = false;
+
+  final EmergencyService _service = EmergencyService();
+
+  void _onLongPressStart() {
+    setState(() {
+      _isHolding = true;
+      _buttonSize = 160;
+    });
+
+    _timer = Timer(const Duration(seconds: 1), () {
+      if (_isHolding) {
+        _service.sendSOS();
+      }
+    });
+  }
+
+  void _onLongPressEnd() {
+    setState(() {
+      _isHolding = false;
+      _buttonSize = 145;
+    });
+    _timer?.cancel();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SOSButton(
+      size: _buttonSize,
+      onStart: _onLongPressStart,
+      onEnd: _onLongPressEnd,
+    );
+  }
+}
+
+/// Top menu bar widget.
 class TopMenuBar extends StatelessWidget {
+  /// Creates a [TopMenuBar].
+  const TopMenuBar({super.key});
+
   @override
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 20),
       child: Row(
-        children: [
+        children: <Widget>[
           const SizedBox(width: 16),
-
           MenuIconButton(
             asset: 'assets/emergency-contacts.svg',
             label: 'Contacts',
-            onTap: () => print('Contacts tapped'),
+            onTap: () {},
           ),
-
           const SizedBox(width: 24),
-
           MenuIconButton(
             asset: 'assets/crash.svg',
             label: 'Crash test',
             onTap: () {
               Navigator.push(
                 context,
-                MaterialPageRoute(
+                MaterialPageRoute<CrashDetectionScreen>(
                   builder: (_) => CrashDetectionScreen(),
                 ),
               );
             },
           ),
-
           const Spacer(),
-
           Padding(
             padding: const EdgeInsets.only(right: 20),
             child: MenuIconButton(
@@ -159,7 +211,7 @@ class TopMenuBar extends StatelessWidget {
               onTap: () {
                 Navigator.push(
                   context,
-                  MaterialPageRoute(
+                  MaterialPageRoute<ProfileScreen>(
                     builder: (_) => const ProfileScreen(),
                   ),
                 );
@@ -172,11 +224,18 @@ class TopMenuBar extends StatelessWidget {
   }
 }
 
+/// Icon button used in the top menu.
 class MenuIconButton extends StatelessWidget {
+  /// Asset path for icon.
   final String asset;
+
+  /// Label displayed below icon.
   final String label;
+
+  /// Tap callback.
   final VoidCallback onTap;
 
+  /// Creates a [MenuIconButton].
   const MenuIconButton({
     super.key,
     required this.asset,
@@ -189,7 +248,7 @@ class MenuIconButton extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Column(
-        children: [
+        children: <Widget>[
           SvgPicture.asset(asset, height: 40, width: 40),
           const SizedBox(height: 8),
           Text(
@@ -205,11 +264,18 @@ class MenuIconButton extends StatelessWidget {
   }
 }
 
+/// SOS button widget.
 class SOSButton extends StatelessWidget {
+  /// Size of the button.
   final double size;
+
+  /// Callback when long press starts.
   final VoidCallback onStart;
+
+  /// Callback when long press ends.
   final VoidCallback onEnd;
 
+  /// Creates a [SOSButton].
   const SOSButton({
     super.key,
     required this.size,
@@ -229,7 +295,7 @@ class SOSButton extends StatelessWidget {
         decoration: BoxDecoration(
           color: AppTheme.colors.primary,
           borderRadius: BorderRadius.circular(20),
-          boxShadow: const [
+          boxShadow: const <BoxShadow>[
             BoxShadow(
               color: Colors.black26,
               blurRadius: 10,
@@ -245,10 +311,13 @@ class SOSButton extends StatelessWidget {
   }
 }
 
-class HelpButton extends StatelessWidget {
+/// Help button widget.
+class HelpButtonWrapper extends StatelessWidget {
+  /// Callback for button press.
   final VoidCallback onPressed;
 
-  const HelpButton({super.key, required this.onPressed});
+  /// Creates a [HelpButtonWrapper].
+  const HelpButtonWrapper({super.key, required this.onPressed});
 
   @override
   Widget build(BuildContext context) {
@@ -273,11 +342,12 @@ class HelpButton extends StatelessWidget {
   }
 }
 
-// ======================= BOTTOM SHEET =======================
-
+/// Bottom sheet with emergency actions.
 class EmergencyBottomSheet extends StatelessWidget {
+  /// Emergency service instance.
   final EmergencyService service;
 
+  /// Creates an [EmergencyBottomSheet].
   const EmergencyBottomSheet({super.key, required this.service});
 
   @override
@@ -289,34 +359,35 @@ class EmergencyBottomSheet extends StatelessWidget {
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
-        children: [
+        children: <Widget>[
           const SizedBox(height: 20),
-
           _buildAction(context, 'Send Emergency Text', () {
             service.sendSOS();
             service.sendText();
             Navigator.pop(context);
           }),
-
           _buildAction(context, 'Voice Emergency Call', () {
             service.sendSOS();
             service.voiceCall();
             Navigator.pop(context);
           }),
-
           _buildAction(context, 'Video Emergency Call', () {
             service.sendSOS();
             service.videoCall();
             Navigator.pop(context);
           }),
-
           const SizedBox(height: 20),
         ],
       ),
     );
   }
 
-  Widget _buildAction(BuildContext context, String label, VoidCallback onTap) {
+  /// Builds an action button.
+  Widget _buildAction(
+    BuildContext context,
+    String label,
+    VoidCallback onTap,
+  ) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 10),
       child: ElevatedButton(
@@ -327,22 +398,19 @@ class EmergencyBottomSheet extends StatelessWidget {
   }
 }
 
-// ======================= SERVICE =======================
-
+/// Service responsible for emergency actions.
 class EmergencyService {
+  /// Sends SOS signal.
   void sendSOS() {
     getAndSendLocation();
   }
 
-  void sendText() {
-    print("Send emergency text...");
-  }
+  /// Sends emergency text.
+  void sendText() {}
 
-  void voiceCall() {
-    print("Voice call...");
-  }
+  /// Initiates voice call.
+  void voiceCall() {}
 
-  void videoCall() {
-    print("Video call...");
-  }
+  /// Initiates video call.
+  void videoCall() {}
 }
